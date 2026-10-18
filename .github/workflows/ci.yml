@@ -27,3 +27,30 @@ jobs:
                   test -f redis/Dockerfile
                   test -f deployment/aks/azure-vote.yaml
                   echo "Required application files are present."
+
+    build-images:
+        name: Build Docker Images
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v2
+
+            - name: Build frontend DOcker image
+              uses: docker/build-push-action@v5
+              with:
+                  context: ./azure-vote
+                  file: ./azure-vote/Dockerfile
+                  push: false
+                  tags: azure-vote-front:${{ github.sha }}
+
+            - name: Build backend Docker image
+              uses: docker/build-push-action@v5
+              with:
+                  context: ./redis
+                  file: ./redis/Dockerfile
+                  push: false
+                  tags: azure-vote-back:${{ github.sha }}

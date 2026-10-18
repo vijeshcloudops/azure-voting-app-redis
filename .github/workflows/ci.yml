@@ -1,0 +1,9 @@
+name: Azure Voting App CI
+
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+        btanches:
+            - main

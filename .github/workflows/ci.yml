@@ -29,7 +29,7 @@ jobs:
                   echo "Required application files are present."
 
     build-images:
-        name: Build and Publish Images
+        name: Build, Scan and Publish Images
         runs-on: ubuntu-latest
         needs: validate
 
@@ -40,6 +40,44 @@ jobs:
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
 
+            - name: Build frontend image
+              uses: docker/build-push-action@v6
+              with:
+                  context: ./azure-vote
+                  file: ./azure-vote/Dockerfile
+                  load: true
+                  push: false
+                  tags: ${{ secrets.DOCKERHUB_USERNAME }}/azure-vote-front:${{ github.sha }}
+
+            - name: Build Redis image
+              uses: docker/build-push-action@v6
+              with:
+                  context: ./redis
+                  file: ./redis/Dockerfile
+                  load: true
+                  push: false
+                  tags: ${{ secrets.DOCKERHUB_USERNAME }}/azure-vote-redis:${{ github.sha }}
+
+            - name: Scan frontend image with Trivy
+              uses: aquasecurity/trivy-action@0.36.0
+              with:
+                  scan-type: image
+                  image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/azure-vote-front:${{ github.sha }}
+                  severity: HIGH,CRITICAL
+                  ignore-unfixed: true
+                  format: table
+                  exit-code: "1"
+
+            - name: Scan Redis image with Trivy
+              uses: aquasecurity/trivy-action@0.36.0
+              with:
+                  scan-type: image
+                  image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/azure-vote-redis:${{ github.sha }}
+                  severity: HIGH,CRITICAL
+                  ignore-unfixed: true
+                  format: table
+                  exit-code: "1"
+
             - name: Log in to Docker Hub
               if: github.event_name == 'push'
               uses: docker/login-action@v3
@@ -47,20 +85,10 @@ jobs:
                   username: ${{ secrets.DOCKERHUB_USERNAME }}
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-            - name: Build and publish frontend
-              uses: docker/build-push-action@v6
-              with:
-                  context: ./azure-vote
-                  file: ./azure-vote/Dockerfile
-                  push: ${{ github.event_name == 'push' }}
-                  tags: |
-                      ${{ secrets.DOCKERHUB_USERNAME }}/azure-vote-front:${{ github.sha }}
+            - name: Publish frontend image
+              if: github.event_name == 'push'
+              run: docker push "${{ secrets.DOCKERHUB_USERNAME }}/azure-vote-front:${{ github.sha }}"
 
-            - name: Build and publish Redis
-              uses: docker/build-push-action@v6
-              with:
-                  context: ./redis
-                  file: ./redis/Dockerfile
-                  push: ${{ github.event_name == 'push' }}
-                  tags: |
-                      ${{ secrets.DOCKERHUB_USERNAME }}/azure-vote-redis:${{ github.sha }}
+            - name: Publish Redis image
+              if: github.event_name == 'push'
+              run: docker push "${{ secrets.DOCKERHUB_USERNAME }}/azure-vote-redis:${{ github.sha }}"

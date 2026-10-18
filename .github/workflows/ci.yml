@@ -5,5 +5,25 @@ on:
         branches:
             - main
     pull_request:
-        btanches:
+        branches:
             - main
+
+permissions:
+    contents: read
+
+jobs:
+    validate:
+        name: Validate Application
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+
+            - name: Verify application files
+              run: |
+                  test -f azure-vote/Dockerfile
+                  test -f azure-vote/azure-vote/main.py
+                  test -f redis/Dockerfile
+                  test -f deployment/aks/azure-vote.yaml
+                  echo "Required application files are present."

@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   validate:
-    name: Validate Application
+    name: Validate Application files
     runs-on: ubuntu-latest
 
     steps:

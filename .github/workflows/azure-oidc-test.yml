@@ -28,7 +28,7 @@ jobs:
             - name: Verify AKS cluster access
               run: |
                   az aks show \
-                    --name voting-app \
-                    --resource-group kml_rg_main-e510de1f4edf4e21 \
+                    --name aks-voting-lab \
+                    --resource-group rg-azure-voting-lab \
                     --query "{name:name, location:location, provisioningState:provisioningState}" \
                     --output table

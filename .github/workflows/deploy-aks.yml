@@ -3,17 +3,36 @@ name: Deploy Azure Voting App to AKS
 on:
     workflow_dispatch:
 
+    workflow_run:
+        workflows: ["Azure Voting App - CI"]
+        types: [completed]
+        branches: [main]
+
 permissions:
     contents: read
     id-token: write
 
 jobs:
     deploy:
+        name: Deploy to AKS
         runs-on: ubuntu-latest
 
+        if: >-
+            github.event_name == 'workflow_dispatch' ||
+            (
+              github.event.workflow_run.conclusion == 'success' &&
+              github.event.workflow_run.event == 'push'
+            )
+
+        env:
+            DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+            IMAGE_TAG: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
         steps:
-            - name: Checkout repository
+            - name: Checkout CI-tested commit
               uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
             - name: Login to Azure using OIDC
               uses: azure/login@v2
@@ -34,18 +53,31 @@ jobs:
 
                   kubelogin convert-kubeconfig -l azurecli
 
-            - name: Deploy application
+            - name: Update manifest image tags
+              run: |
+                  set -e
+
+                  sed -i \
+                    "s|^\([[:space:]]*image: \).*azure-vote-front:.*|\1${DOCKERHUB_USERNAME}/azure-vote-front:${IMAGE_TAG}|" \
+                    deployment/aks/azure-vote.yaml
+
+                  sed -i \
+                    "s|^\([[:space:]]*image: \).*azure-vote-redis:.*|\1${DOCKERHUB_USERNAME}/azure-vote-redis:${IMAGE_TAG}|" \
+                    deployment/aks/azure-vote.yaml
+
+                  echo "Images configured in the manifest:"
+                  grep -E 'image: .*azure-vote-(front|redis):' deployment/aks/azure-vote.yaml
+
+                  grep -q "image: ${DOCKERHUB_USERNAME}/azure-vote-front:${IMAGE_TAG}" deployment/aks/azure-vote.yaml
+                  grep -q "image: ${DOCKERHUB_USERNAME}/azure-vote-redis:${IMAGE_TAG}" deployment/aks/azure-vote.yaml
+
+            - name: Apply Kubernetes manifest
               run: |
                   kubectl apply -f deployment/aks/azure-vote.yaml
 
-                  kubectl set image deployment/azure-vote-front \
-                    azure-vote-front=${{ secrets.DOCKERHUB_USERNAME }}/azure-vote-front:${GITHUB_SHA}
-
-                  kubectl set image deployment/azure-vote-back \
-                    azure-vote-back=${{ secrets.DOCKERHUB_USERNAME }}/azure-vote-redis:${GITHUB_SHA}
-
-            - name: Verify rollout
+            - name: Verify deployment rollout
               run: |
                   kubectl rollout status deployment/azure-vote-front --timeout=180s
                   kubectl rollout status deployment/azure-vote-back --timeout=180s
+
                   kubectl get deployments,services,pods

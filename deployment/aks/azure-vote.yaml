@@ -16,7 +16,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
       - name: azure-vote-back
-        image: vijesh89/azure-vote-redis:0d3451378af66984b0668ab1cafcb9e430e961f8
+        image: vijesh89/azure-vote-redis:1efc64fdaf02769302c1e2e9e60ee5550b731fb0
         env:
         - name: ALLOW_EMPTY_PASSWORD
           value: "yes"
@@ -57,7 +57,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
       - name: azure-vote-front
-        image: vijesh89/azure-vote-front:0d3451378af66984b0668ab1cafcb9e430e961f8
+        image: vijesh89/azure-vote-front:1efc64fdaf02769302c1e2e9e60ee5550b731fb0
         ports:
         - containerPort: 80
         resources:
